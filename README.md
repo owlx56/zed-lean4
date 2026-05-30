@@ -52,8 +52,8 @@ lean --version
 
 ## TODO list
 
-- Implement infoview like [VSCode](https://github.com/leanprover/vscode-lean4) and [Neovim](https://github.com/Julian/lean.nvim)
-- Tree-sitter-lean is experimental and needs improvement
+- Implement infoview like [VSCode](https://github.com/leanprover/vscode-lean4) and [Neovim](https://github.com/Julian/lean.nvim) with Rust
+- Tree-sitter-lean is experimental now and needs improvement
 - Update and uninstall _elan_
 
 ## Development
