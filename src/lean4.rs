@@ -1,6 +1,28 @@
 use std::{env, fs, path::PathBuf};
 use zed_extension_api::{self as zed, Result, serde_json::Value, settings::LspSettings};
 
+fn lake_server_args(lsp_settings: &LspSettings, worktree: &zed::Worktree) -> Vec<String> {
+    let mut args = Vec::new();
+
+    if let Some(project_dir) = lsp_settings
+        .settings
+        .as_ref()
+        .and_then(|settings| settings.pointer("/lake_project_dir"))
+        .and_then(Value::as_str)
+    {
+        let project_dir = PathBuf::from(project_dir);
+        let project_dir = if project_dir.is_absolute() {
+            project_dir
+        } else {
+            PathBuf::from(worktree.root_path()).join(project_dir)
+        };
+        args.extend(["--dir".into(), project_dir.to_string_lossy().into_owned()]);
+    }
+
+    args.extend(["serve".into(), "--".into()]);
+    args
+}
+
 struct Lean4Extension;
 
 impl zed::Extension for Lean4Extension {
@@ -15,6 +37,7 @@ impl zed::Extension for Lean4Extension {
     ) -> Result<zed::Command> {
         let shell_env = worktree.shell_env();
         let lsp_settings = LspSettings::for_worktree(language_server_id.as_ref(), worktree)?;
+        let lake_args = lake_server_args(&lsp_settings, worktree);
 
         // Check lsp.lean4-lsp.binary
         if let Some(binary) = lsp_settings.binary
@@ -31,7 +54,7 @@ impl zed::Extension for Lean4Extension {
         if let Some(path) = worktree.which("lake") {
             return Ok(zed::Command {
                 command: path,
-                args: vec!["serve".into(), "--".into()],
+                args: lake_args.clone(),
                 env: vec![],
             });
         }
@@ -59,7 +82,7 @@ impl zed::Extension for Lean4Extension {
         if worktree.which(&lake_path_str).is_some() {
             return Ok(zed::Command {
                 command: lake_path_str,
-                args: vec!["serve".into(), "--".into()],
+                args: lake_args.clone(),
                 env: vec![],
             });
         }
@@ -71,7 +94,7 @@ impl zed::Extension for Lean4Extension {
             .and_then(|s| s.pointer("/elan_auto_install"))
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        
+
         if !elan_auto_install {
             return Err(
                 "Failed to find lake in PATH or ELAN_HOME/default path. Enable lsp.lean4-lsp.settings.elan_auto_install or configure lsp.lean4-lsp.binary.path."
@@ -158,7 +181,7 @@ impl zed::Extension for Lean4Extension {
 
         Ok(zed::Command {
             command: lake_path_str,
-            args: vec!["serve".into(), "--".into()],
+            args: lake_args,
             env: vec![],
         })
     }
